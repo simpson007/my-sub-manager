@@ -1,5 +1,6 @@
 import { supabase } from '@/utils/supabase/client';
 import AddSubscription from '@/components/AddSubscription';
+import SubscriptionCard from '@/components/SubscriptionCard';
 
 interface Subscription {
   id: number;
@@ -56,6 +57,9 @@ export default async function Home() {
                     <span>到期时间</span>
                     <span className="text-pink-400">{sub.due_date}</span>
                   </p>
+                  <div className="flex justify-center mb-10">
+                    <SubscriptionCard id={sub.id} />
+                  </div>
                 </div>
               </div>
             ))}
