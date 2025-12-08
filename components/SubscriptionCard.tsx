@@ -1,12 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase/client';
 import toast from 'react-hot-toast';
 
-export default function SubscriptionCard({id}: { id: number}) {
-  const router = useRouter();
+export default function SubscriptionCard({id, onDelete}: { id: number; onDelete?: () => void }) {
   const [loading, setLoading] = useState(false);
 
   const handleDelete = async () => {
@@ -19,11 +17,11 @@ export default function SubscriptionCard({id}: { id: number}) {
     const { error } = await supabase.from('subscriptions').delete().eq('id', id)
 
     if (error) {
-      console.error('Error inserting subscription:', error);
+      console.error('Error deleting subscription:', error);
       toast.error('删除失败，请重试');
     } else {
       toast.success('删除成功');  
-      router.refresh();
+      onDelete?.(); // 调用回调刷新列表
     }
     setLoading(false);
   };

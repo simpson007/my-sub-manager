@@ -1,11 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase/client';
 
-export default function AddSubscription() {
-  const router = useRouter();
+export default function AddSubscription({ onAdd }: { onAdd?: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -18,7 +16,20 @@ export default function AddSubscription() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.from('subscriptions').insert([form]);
+    // 获取当前登录用户
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      alert('请先登录');
+      setLoading(false);
+      return;
+    }
+
+    // 插入时带上 user_id
+    const { error } = await supabase.from('subscriptions').insert([{
+      ...form,
+      user_id: user.id,
+    }]);
 
     if (error) {
       console.error('Error inserting subscription:', error);
@@ -26,7 +37,7 @@ export default function AddSubscription() {
     } else {
       setForm({ name: '', price: '', due_date: '' });
       setIsOpen(false);
-      router.refresh();
+      onAdd?.(); // 调用回调刷新列表
     }
 
     setLoading(false);
