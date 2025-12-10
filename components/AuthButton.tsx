@@ -7,12 +7,32 @@ import type { User } from '@supabase/supabase-js';
 
 export default function AuthButton() {
   const [user, setUser] = useState<User | null>(null);
+  const [isPro, setIsPro] = useState<boolean | null>(null); // null = loading
   const [loading, setLoading] = useState(true);
+
+  // 获取用户的 Pro 状态
+  const fetchProStatus = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('is_pro')
+      .eq('id', userId)
+      .single();
+    
+    if (error) {
+      console.error('获取 Pro 状态失败:', error);
+    }
+    console.log('Pro 状态查询结果:', { userId, data, error });
+    
+    setIsPro(data?.is_pro ?? false);
+  };
 
   useEffect(() => {
     // 获取当前用户
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
+      if (user) {
+        fetchProStatus(user.id);
+      }
       setLoading(false);
     });
 
@@ -20,11 +40,30 @@ export default function AuthButton() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null);
+        if (session?.user) {
+          fetchProStatus(session.user.id);
+        } else {
+          setIsPro(null);
+        }
       }
     );
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // 升级按钮点击
+  const handleUpgrade = () => {
+    if (!user) return;
+    
+    const paymentLink = process.env.NEXT_PUBLIC_PAYMENT_LINK;
+    if (!paymentLink) {
+      alert('支付链接未配置');
+      return;
+    }
+    
+    const checkoutUrl = `${paymentLink}?checkout[custom][user_id]=${user.id}`;
+    window.open(checkoutUrl, '_blank');
+  };
 
   if (loading) {
     return <div className="text-gray-400">加载中...</div>;
@@ -36,20 +75,42 @@ export default function AuthButton() {
     
     return (
       <div className="flex items-center gap-3">
-        {avatarUrl ? (
-          <img 
-            src={avatarUrl} 
-            alt={userName} 
-            className="w-10 h-10 rounded-full border-2 border-purple-500"
-          />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold">
-            {userName?.charAt(0).toUpperCase()}
-          </div>
+        {/* 头像 */}
+        <div className="relative">
+          {avatarUrl ? (
+            <img 
+              src={avatarUrl} 
+              alt={userName} 
+              className={`w-10 h-10 rounded-full border-2 ${isPro ? 'border-yellow-500' : 'border-purple-500'}`}
+            />
+          ) : (
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${isPro ? 'bg-yellow-500' : 'bg-purple-500'}`}>
+              {userName?.charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
+
+        {/* 用户名 + Pro 徽章 */}
+        <div className="hidden sm:flex items-center gap-2">
+          <span className="text-gray-300">{userName}</span>
+          {isPro && (
+            <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-bold px-2 py-0.5 rounded">
+              PRO
+            </span>
+          )}
+        </div>
+
+        {/* 升级按钮 (仅非 Pro 用户显示) */}
+        {isPro === false && (
+          <button
+            onClick={handleUpgrade}
+            className="px-3 py-1.5 bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-sm font-bold rounded-lg hover:opacity-90 transition-opacity"
+          >
+            ⚡️ 升级
+          </button>
         )}
-        <span className="text-gray-300 hidden sm:block">
-          {userName}
-        </span>
+
+        {/* 登出按钮 */}
         <button
           onClick={() => signOut()}
           className="px-4 py-2 bg-gray-700 rounded-lg text-gray-300 hover:bg-gray-600 transition-colors text-sm"
